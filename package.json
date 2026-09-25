@@ -1,0 +1,16 @@
+{
+  "name": "cicd-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal application for a GitHub Actions CI/CD workshop",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "express": "5.1.0"
+  }
+}
