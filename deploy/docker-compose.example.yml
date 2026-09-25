@@ -1,0 +1,17 @@
+services:
+  app:
+    image: ${IMAGE:?Set IMAGE to the GHCR image name}:${IMAGE_TAG:-latest}
+    container_name: cicd-demo
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
