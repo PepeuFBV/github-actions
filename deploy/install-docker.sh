@@ -30,6 +30,11 @@ else
   echo "Docker Engine and the Compose plugin are already installed."
 fi
 
+if ! command -v curl >/dev/null 2>&1; then
+  sudo apt-get update
+  sudo apt-get install -y curl
+fi
+
 sudo systemctl enable --now docker
 
 deploy_user="${SUDO_USER:-$(id -un)}"
