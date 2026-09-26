@@ -1,110 +1,110 @@
 name: Deploy
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [main]
+    workflow_run:
+        workflows: [CI]
+        types: [completed]
+        branches: [main]
 
 permissions:
-  contents: read
+    contents: read
 
 jobs:
-  publish:
-    name: Build and publish image
-    if: github.event.workflow_run.conclusion == 'success'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Check out the validated commit
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+    publish:
+        name: Build and publish image
+        if: github.event.workflow_run.conclusion == 'success'
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            packages: write
+        steps:
+            - name: Check out the validated commit
+              uses: actions/checkout@v6
+              with:
+                  ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v4
 
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+            - name: Log in to GHCR
+              uses: docker/login-action@v4
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate image tags
-        id: metadata
-        uses: docker/metadata-action@v6
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=raw,value=latest
-            type=raw,value=sha-${{ github.event.workflow_run.head_sha }}
+            - name: Generate image tags
+              id: metadata
+              uses: docker/metadata-action@v6
+              with:
+                  images: ghcr.io/${{ github.repository }}
+                  tags: |
+                      type=raw,value=latest
+                      type=raw,value=sha-${{ github.event.workflow_run.head_sha }}
 
-      - name: Build and publish
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.metadata.outputs.tags }}
-          labels: ${{ steps.metadata.outputs.labels }}
+            - name: Build and publish
+              uses: docker/build-push-action@v7
+              with:
+                  context: .
+                  push: true
+                  tags: ${{ steps.metadata.outputs.tags }}
+                  labels: ${{ steps.metadata.outputs.labels }}
 
-  deploy:
-    name: Deploy to remote server
-    needs: publish
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out the validated commit
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+    deploy:
+        name: Deploy to remote server
+        needs: publish
+        runs-on: ubuntu-latest
+        steps:
+            - name: Check out the validated commit
+              uses: actions/checkout@v6
+              with:
+                  ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Configure SSH
-        env:
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
-        run: |
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
+            - name: Configure SSH
+              env:
+                  DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+                  DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+              run: |
+                  install -m 700 -d ~/.ssh
+                  printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+                  chmod 600 ~/.ssh/id_ed25519
+                  printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+                  chmod 600 ~/.ssh/known_hosts
 
-      - name: Copy Compose configuration
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
-        run: |
-          ssh -o BatchMode=yes -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" 'mkdir -p ~/cicd-demo'
-          scp -P "$DEPLOY_PORT" deploy/docker-compose.example.yml "$DEPLOY_USER@$DEPLOY_HOST:cicd-demo/docker-compose.yml"
+            - name: Copy Compose configuration
+              env:
+                  DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+                  DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+                  DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+              run: |
+                  ssh -o BatchMode=yes -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" 'mkdir -p ~/cicd-demo'
+                  scp -P "$DEPLOY_PORT" deploy/docker-compose.example.yml "$DEPLOY_USER@$DEPLOY_HOST:cicd-demo/docker-compose.yml"
 
-      - name: Set image version on the server
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
-          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha }}
-          APP_PORT: ${{ vars.APP_PORT || '3000' }}
-          DEPLOY_ENV_FILE: ${{ runner.temp }}/cicd-demo.env
-        run: |
-          if [[ ! "$APP_PORT" =~ ^[0-9]+$ ]]; then
-            echo "APP_PORT must be a port number." >&2
-            exit 1
-          fi
+            - name: Set image version on the server
+              env:
+                  DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+                  DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+                  DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+                  DEPLOY_SHA: ${{ github.event.workflow_run.head_sha }}
+                  APP_PORT: ${{ vars.APP_PORT || '3000' }}
+                  DEPLOY_ENV_FILE: ${{ runner.temp }}/cicd-demo.env
+              run: |
+                  if [[ ! "$APP_PORT" =~ ^[0-9]+$ ]]; then
+                    echo "APP_PORT must be a port number." >&2
+                    exit 1
+                  fi
 
-          image="ghcr.io/$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
-          printf 'IMAGE=%s\nIMAGE_TAG=sha-%s\nAPP_PORT=%s\n' "$image" "$DEPLOY_SHA" "$APP_PORT" > "$DEPLOY_ENV_FILE"
-          scp -P "$DEPLOY_PORT" "$DEPLOY_ENV_FILE" "$DEPLOY_USER@$DEPLOY_HOST:cicd-demo/.env"
-          rm -f "$DEPLOY_ENV_FILE"
+                  image="ghcr.io/$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+                  printf 'IMAGE=%s\nIMAGE_TAG=sha-%s\nAPP_PORT=%s\n' "$image" "$DEPLOY_SHA" "$APP_PORT" > "$DEPLOY_ENV_FILE"
+                  scp -P "$DEPLOY_PORT" "$DEPLOY_ENV_FILE" "$DEPLOY_USER@$DEPLOY_HOST:cicd-demo/.env"
+                  rm -f "$DEPLOY_ENV_FILE"
 
-      - name: Pull, restart, and check the application
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
-          APP_PORT: ${{ vars.APP_PORT || '3000' }}
-        run: |
-          ssh -o BatchMode=yes -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "cd ~/cicd-demo && docker compose pull && docker compose up -d && curl --fail --silent --show-error --retry 10 --retry-delay 2 --retry-connrefused http://localhost:${APP_PORT}/health"
+            - name: Pull, restart, and check the application
+              env:
+                  DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+                  DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+                  DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+                  APP_PORT: ${{ vars.APP_PORT || '3000' }}
+              run: |
+                  ssh -o BatchMode=yes -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+                    "cd ~/cicd-demo && docker compose pull && docker compose up -d && curl --fail --silent --show-error --retry 10 --retry-delay 2 --retry-connrefused http://localhost:${APP_PORT}/health"
