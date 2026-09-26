@@ -27,8 +27,5 @@ jobs:
             - name: Lint
               run: npm run lint
 
-            - name: Test Failure
-              run: exit 1
-
             - name: Test
               run: npm test
