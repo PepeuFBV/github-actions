@@ -126,7 +126,7 @@ ssh USUARIO@HOST 'curl --fail http://localhost:3000/health'
 
 ## 11. Como provocar uma falha no CI
 
-Em `src/app.js`, adicione temporariamente uma declaração não usada, por exemplo `const demoFailure = true;`. O lint acusa `no-unused-vars`, o CI fica vermelho e a publicação/deploy é ignorada. Remova a linha e envie a correção; após CI verde, publicação e deploy prosseguem. Faça a demonstração em uma branch/PR ou combine o push para `main` com as regras da turma.
+Em `src/app.js`, adicione temporariamente uma declaração não usada, por exemplo `const demoFailure = true;`. O lint acusa `no-unused-vars`, o CI fica vermelho e a publicação/deploy é ignorada. Remova a linha e envie a correção, o pipeline `CI` deverá ficar verde.
 
 ## 12. Como acompanhar um deployment
 
